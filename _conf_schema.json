@@ -16,5 +16,11 @@
     "type": "int",
     "default": 1000,
     "hint": "生成图片时的文本字数上限，超过此限制将拒绝生成图片"
+  },
+  "max_url_length": {
+    "description": "URL长度上限",
+    "type": "int",
+    "default": 2048,
+    "hint": "生成的图片URL长度上限，超过此限制将不转换为图片"
   }
 }

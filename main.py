@@ -30,6 +30,9 @@ class MyPlugin(Star):
                 if "max_text_length" in config:
                     self.max_text_length = int(config["max_text_length"])
                     logger.info(f"从配置中读取文本字数上限：{self.max_text_length}")
+                if "max_url_length" in config:
+                    self.max_url_length = int(config["max_url_length"])
+                    logger.info(f"从配置中读取URL长度上限：{self.max_url_length}")
         except Exception as e:
             logger.error(f"读取配置失败：{e}")
         
@@ -42,9 +45,11 @@ class MyPlugin(Star):
             self.color_enabled = True  # 默认为开启文本多颜色
         if not hasattr(self, 'max_text_length'):
             self.max_text_length = 1000  # 默认为1000字符
+        if not hasattr(self, 'max_url_length'):
+            self.max_url_length = 2048  # 默认为2048字符
         
         logger.info(f"文本转图片插件初始化，当前图片模式：{self.image_mode}，文本多颜色状态：{self.color_enabled}")
-        logger.info(f"当前图片模板地址：{self.image_url}，文本字数上限：{self.max_text_length}")
+        logger.info(f"当前图片模板地址：{self.image_url}，文本字数上限：{self.max_text_length}，URL长度上限：{self.max_url_length}")
     
     def _get_data_file(self):
         """获取数据文件路径"""
@@ -73,6 +78,9 @@ class MyPlugin(Star):
                         # 只有当 max_text_length 未从配置文件中设置时，才从持久化数据中加载
                         if 'max_text_length' in data and not hasattr(self, 'max_text_length'):
                             self.max_text_length = data['max_text_length']
+                        # 只有当 max_url_length 未从配置文件中设置时，才从持久化数据中加载
+                        if 'max_url_length' in data and not hasattr(self, 'max_url_length'):
+                            self.max_url_length = data['max_url_length']
                     logger.info("已从持久化数据加载配置")
             except Exception as e:
                 logger.error(f"加载持久化数据失败：{e}")
@@ -90,7 +98,8 @@ class MyPlugin(Star):
                     'image_mode': self.image_mode,
                     'image_url': self.image_url,
                     'color_enabled': self.color_enabled,
-                    'max_text_length': self.max_text_length
+                    'max_text_length': self.max_text_length,
+                    'max_url_length': self.max_url_length
                 }
                 with open(self.data_file, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
@@ -350,9 +359,8 @@ class MyPlugin(Star):
                         api_url = f"{self.api_url}?{query_string}"
                         
                         # 检查最终 URL 长度
-                        MAX_URL_LENGTH = 2048
-                        if len(api_url) > MAX_URL_LENGTH:
-                            logger.warning(f"生成的图片 URL 过长：{len(api_url)} 字符，可能导致发送失败")
+                        if len(api_url) > self.max_url_length:
+                            logger.warning(f"生成的图片 URL 过长：{len(api_url)} 字符，超过限制（{self.max_url_length}字符），可能导致发送失败")
                             # 不转换为图片，保持原样
                             return
                         
