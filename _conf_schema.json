@@ -10,5 +10,11 @@
     "type": "bool",
     "default": true,
     "hint": "开启后生成的图片将包含多种颜色，关闭后生成的图片将只有一种颜色"
+  },
+  "max_text_length": {
+    "description": "文本字数上限",
+    "type": "number",
+    "default": 1000,
+    "hint": "生成图片时的文本字数上限，超过此限制将拒绝生成图片"
   }
 }

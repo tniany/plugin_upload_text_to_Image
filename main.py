@@ -27,6 +27,9 @@ class MyPlugin(Star):
                 if "color_enabled" in config:
                     self.color_enabled = config["color_enabled"]
                     logger.info(f"从配置中读取文本多颜色状态：{self.color_enabled}")
+                if "max_text_length" in config:
+                    self.max_text_length = int(config["max_text_length"])
+                    logger.info(f"从配置中读取文本字数上限：{self.max_text_length}")
         except Exception as e:
             logger.error(f"读取配置失败：{e}")
         
@@ -37,9 +40,11 @@ class MyPlugin(Star):
             self.image_url = "https://api.suyanw.cn/api/comic.php"  # 默认值
         if not hasattr(self, 'color_enabled'):
             self.color_enabled = True  # 默认为开启文本多颜色
+        if not hasattr(self, 'max_text_length'):
+            self.max_text_length = 1000  # 默认为1000字符
         
         logger.info(f"文本转图片插件初始化，当前图片模式：{self.image_mode}，文本多颜色状态：{self.color_enabled}")
-        logger.info(f"当前图片模板地址：{self.image_url}")
+        logger.info(f"当前图片模板地址：{self.image_url}，文本字数上限：{self.max_text_length}")
     
     def _get_data_file(self):
         """获取数据文件路径"""
@@ -59,10 +64,15 @@ class MyPlugin(Star):
                         data = json.load(f)
                         if 'image_mode' in data:
                             self.image_mode = data['image_mode']
-                        if 'image_url' in data:
+                        # 只有当 image_url 未从配置文件中设置时，才从持久化数据中加载
+                        if 'image_url' in data and not hasattr(self, 'image_url'):
                             self.image_url = data['image_url']
-                        if 'color_enabled' in data:
+                        # 只有当 color_enabled 未从配置文件中设置时，才从持久化数据中加载
+                        if 'color_enabled' in data and not hasattr(self, 'color_enabled'):
                             self.color_enabled = data['color_enabled']
+                        # 只有当 max_text_length 未从配置文件中设置时，才从持久化数据中加载
+                        if 'max_text_length' in data and not hasattr(self, 'max_text_length'):
+                            self.max_text_length = data['max_text_length']
                     logger.info("已从持久化数据加载配置")
             except Exception as e:
                 logger.error(f"加载持久化数据失败：{e}")
@@ -79,7 +89,8 @@ class MyPlugin(Star):
                 data = {
                     'image_mode': self.image_mode,
                     'image_url': self.image_url,
-                    'color_enabled': self.color_enabled
+                    'color_enabled': self.color_enabled,
+                    'max_text_length': self.max_text_length
                 }
                 with open(self.data_file, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
@@ -124,9 +135,8 @@ class MyPlugin(Star):
             return
         
         # 检查文本长度，避免 URL 过长
-        MAX_TEXT_LENGTH = 1000
-        if len(user_text) > MAX_TEXT_LENGTH:
-            async for result in self.send_message(event, f"文本长度超过限制（{MAX_TEXT_LENGTH}字符），请缩短文本后重试"):
+        if len(user_text) > self.max_text_length:
+            async for result in self.send_message(event, f"文本长度超过限制（{self.max_text_length}字符），请缩短文本后重试"):
                 yield result
             return
         
@@ -223,6 +233,60 @@ class MyPlugin(Star):
         # 发送状态消息
         async for result in self.send_message(event, f"文本多颜色状态已{status}。\n{status}后，生成的图片将{'包含多种颜色' if self.color_enabled else '只有一种颜色'}。"):
             yield result
+
+    # 注册指令的装饰器。指令名为 setmax。注册成功后，发送 `/setmax 数字` 就会触发这个指令，设置文本字数上限
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("setmax")
+    async def set_max_text_length(self, event: AstrMessageEvent):
+        """设置文本字数上限"""
+        message_str = event.message_str # 用户发的纯文本消息字符串
+        if message_str is None:
+            async for result in self.send_message(event, "请输入要设置的文本字数上限，例如：/setmax 2000"):
+                yield result
+            return
+        
+        try:
+            # 提取命令参数，去除命令前缀
+            max_length_str = message_str.strip()
+            # 处理两种前缀格式："/setmax " 和 "setmax "
+            if max_length_str.startswith('/setmax '):
+                max_length_str = max_length_str[8:].strip()
+            elif max_length_str.startswith('setmax '):
+                max_length_str = max_length_str[7:].strip()
+            # 处理仅命令无参数的场景
+            elif max_length_str == '/setmax' or max_length_str == 'setmax':
+                max_length_str = ""
+            
+            # 验证输入
+            if not max_length_str:
+                async for result in self.send_message(event, "请输入要设置的文本字数上限，例如：/setmax 2000"):
+                    yield result
+                return
+            
+            # 转换为整数
+            max_length = int(max_length_str)
+            
+            # 验证值的合理性
+            if max_length <= 0:
+                async for result in self.send_message(event, "文本字数上限必须大于0"):
+                    yield result
+                return
+            
+            # 更新文本字数上限
+            self.max_text_length = max_length
+            logger.info(f"文本字数上限已设置为：{self.max_text_length}")
+            # 保存数据
+            await self._save_data()
+            # 发送状态消息
+            async for result in self.send_message(event, f"文本字数上限已设置为：{self.max_text_length}字符"):
+                yield result
+        except ValueError:
+            async for result in self.send_message(event, "请输入有效的数字，例如：/setmax 2000"):
+                yield result
+        except Exception as e:
+            logger.error(f"设置文本字数上限时出错：{e}")
+            async for result in self.send_message(event, f"设置文本字数上限时出错：{str(e)}"):
+                yield result
 
 
 
