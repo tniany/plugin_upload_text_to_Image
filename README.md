@@ -1,7 +1,7 @@
 # astrbot_plugin_text_to_Image
  二次元风格-文本转图片
 <center>
-<img src="https://count.getloli.com/@:name" alt=":tniay-astrbot-Image" width="300">
+<img src="https://count.getloli.com/@:name" alt="tniay-astrbot-Image" width="300">
 </center>
 
 <div align="center">
