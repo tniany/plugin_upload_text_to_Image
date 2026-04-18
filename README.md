@@ -1,6 +1,8 @@
 # astrbot_plugin_text_to_Image
  二次元风格-文本转图片
 
+ <img src="https://count.getloli.com/@:name" alt="tniay-Image" />
+
 <div align="center">
   <img src="https://github.com/user-attachments/assets/4d1de02f-7347-4b2f-b81d-c2d3cfd84b87" alt="logo" width="300" />
   <p>AstrBot 插件，二次元风格文转图，使bot以图片形式返回内容，将文本以图片的形式发送。基于外部API的二次元风格文转图，提供更美观的文本展示效果。</p>
